@@ -1,0 +1,1 @@
+# Common bounding box visualisation
