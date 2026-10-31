@@ -48,7 +48,7 @@ class Evaluator:
             ground_truths.append(boxes)
 
         # Calculate average inference time
-        average_time = inference_time / len(dataset) if len(dataset) else 0.0
+        average_time = inference_time / len(predictions) if len(predictions) else 0.0
 
         return {
             "predictions": predictions,

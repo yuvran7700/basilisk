@@ -9,7 +9,9 @@ from config import RESULTS_DIR
 
 class BaseDetector(ABC):
     """Base class for all bird detection methods."""
-
+    def __init__(self, name):
+        self.name = name
+    
     @abstractmethod
     def predict(self, image):
         """Override to detect birds in one image.

@@ -20,15 +20,3 @@ class MachineLearningDetector(BaseDetector):
         """Detect birds in a single image."""
         # TODO: Implement detection
         raise NotImplementedError
-
-
-def main():
-    # Load training dataset
-    train_dataset = load_dataset("train")
-
-    # Initialise and train detector
-    detector = MachineLearningDetector()
-    detector.train(train_dataset)
-
-if __name__ == "__main__":
-    main()
