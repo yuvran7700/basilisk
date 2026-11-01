@@ -83,9 +83,10 @@ def compute_metrics(detections, ground_truths, iou_threshold=0.5):
     recall = total_tp / (total_tp + total_fn) if total_tp + total_fn else 0
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0
 
-    print(f"TP: {total_tp}, FP: {total_fp}, FN: {total_fn}")
-
     return {
+        "tp": total_tp,
+        "fp": total_fp,
+        "fn": total_fn,
         "precision": precision,
         "recall": recall,
         "f1": f1
