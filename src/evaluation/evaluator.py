@@ -5,7 +5,11 @@ from src.methods.base import BaseDetector
 from src.evaluation.metrics import calculate_map50, compute_metrics
 
 class Evaluator:
-    """Evaluate bird detection methods using annotated images."""
+    """Evaluate bird detection methods against ground-truth annotations.
+
+    Computes detection metrics, measures inference time, and displays
+    the evaluation results in a formatted table.
+    """
 
     def __init__(self, detector: BaseDetector):
         self.detector = detector
@@ -13,21 +17,31 @@ class Evaluator:
     def evaluate(self, dataset, title):
         """Run the detector on every image in the dataset.
 
-        Compares can be performed using the collected predictions and
-        ground-truth annotations. Measures the total inference time
-        without including dataset loading.
+        Runs inference on each image, compares predicted bounding boxes
+        against ground-truth annotations, and calculates detection metrics
+        including precision, recall, F1-score, and mAP@0.5.
+
+        Measures the total inference time without including dataset loading.
 
         Args:
             dataset (list): List of (image, boxes) tuples, where:
                 - image: OpenCV BGR image as a NumPy array.
                 - boxes: Ground-truth bounding boxes of shape (N, 4)
                   in XYXY pixel coordinates.
+            title (str): Title displayed above the evaluation results table.
 
         Returns:
             dict: Dictionary containing:
                 - predictions: List of prediction dictionaries, each
                   containing "boxes" and "scores".
                 - ground_truths: List of ground-truth bounding box arrays.
+                - tp: Total true positives.
+                - fp: Total false positives.
+                - fn: Total false negatives.
+                - precision: Overall detection precision.
+                - recall: Overall detection recall.
+                - f1: F1-score.
+                - map50: Mean average precision at IoU threshold 0.5.
                 - inference_time: Total inference time in seconds.
                 - average_inference_time: Average seconds per image.
         """
@@ -69,7 +83,19 @@ class Evaluator:
 
     
     def print_metrics(self, results, title):
-        """Display evaluation metrics in a report-ready table."""
+        """Display detection metrics in a formatted Matplotlib table.
+
+        Presents detection counts, precision, recall, F1-score, mAP@0.5,
+        and inference times in a report-ready table.
+
+        Args:
+            results (dict): Dictionary of evaluation metrics returned
+                by the evaluate() method.
+            title (str): Title displayed above the metrics table.
+
+        Returns:
+            None: Displays the table without returning a value.
+        """
 
         data = [
             ["True Positives", f"{results['tp']:,}"],

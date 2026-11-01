@@ -6,7 +6,15 @@ import numpy as np
 # ExplainingAI's video tutorial: "Mean Average Precision (mAP) | Explanation and Implementation for Object Detection"
 # Code source: https://github.com/explainingai-code/DetectionUtils/blob/main/compute_ap.py
 def get_iou(det, gt):
-    """method that calculcates the IoU between the detected box and the ground truth boxes"""
+    """Calculate IoU between two bounding boxes.
+
+    Args:
+        det: Predicted box in XYXY format.
+        gt: Ground-truth box in XYXY format.
+
+    Returns:
+        float: IoU score between 0 and 1.
+    """
     dt_x1, dt_y1, dt_x2, dt_y2 = det
     gt_x1, gt_y1, gt_x2, gt_y2 = gt
 
@@ -32,7 +40,16 @@ def get_iou(det, gt):
 # Electronics, 10(3), 279. https://doi.org/10.3390/electronics10030279
 # Repository: https://github.com/rafaelpadilla/review_object_detection_metrics
 def compute_metrics(detections, ground_truths, iou_threshold=0.5):
-    """Calculate precision, recall and F1-score for object detection."""
+    """Calculate detection metrics using IoU-based matching.
+
+    Args:
+        detections: List of predictions containing boxes and scores.
+        ground_truths: List of ground-truth bounding boxes.
+        iou_threshold: Minimum IoU for a true positive (default 0.5).
+
+    Returns:
+        dict: TP, FP, FN, precision, recall and F1-score.
+    """
 
     if len(detections) != len(ground_truths):
         raise ValueError(
@@ -94,7 +111,15 @@ def compute_metrics(detections, ground_truths, iou_threshold=0.5):
 
 
 def calculate_map50(predictions, ground_truths):
-    """Calculate mAP@0.5 for bird detection using TorchMetrics."""
+    """Calculate mAP@0.5 using TorchMetrics.
+
+    Args:
+        predictions: List of predictions containing boxes and scores.
+        ground_truths: List of ground-truth bounding boxes.
+
+    Returns:
+        float: mAP@0.5 score between 0 and 1.
+    """
     metric = MeanAveragePrecision(
         box_format="xyxy",
         iou_thresholds=[0.5],
