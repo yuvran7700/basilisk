@@ -61,8 +61,8 @@ def load_dataset(split):
         # Load bounding boxes in XYXY format
         boxes = load_annotations(label_path)
 
-        # Store image and annotations together
-        dataset.append((image, boxes))
+        # Store image, annotations and file name together
+        dataset.append((image, boxes, image_file.stem))
 
     return dataset
 
