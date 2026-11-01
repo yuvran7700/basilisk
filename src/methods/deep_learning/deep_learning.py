@@ -22,7 +22,7 @@ class DeepLearningDetector(BaseDetector):
         result = self.model.predict(
             source=image,
             classes=[14],  # COCO bird class
-            conf=0.001,
+            conf=0.25,
             verbose=False
         )[0]
 
