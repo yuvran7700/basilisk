@@ -2,7 +2,7 @@ import torch
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 import numpy as np
 
-# Bounding box evaluation metrics (IoU, NMS, mAP) adapted from 
+# Bounding box IoU adapted from 
 # ExplainingAI's video tutorial: "Mean Average Precision (mAP) | Explanation and Implementation for Object Detection"
 # Code source: https://github.com/explainingai-code/DetectionUtils/blob/main/compute_ap.py
 def get_iou(det, gt):
@@ -44,7 +44,7 @@ def compute_metrics(detections, ground_truths, iou_threshold=0.5):
     total_fn = 0
 
     # Compare predictions and ground_truths for each image
-    for prediction, ground_truths in zip(detections, ground_truths):
+    for prediction, annotations in zip(detections, ground_truths):
         pred_boxes = prediction["boxes"]
         scores = prediction["scores"]
 
@@ -58,7 +58,7 @@ def compute_metrics(detections, ground_truths, iou_threshold=0.5):
             best_idx = -1
 
             # Find the ground-truth box with highest IoU
-            for i, gt_box in enumerate(ground_truths):
+            for i, gt_box in enumerate(annotations):
                 if i in matched:
                     continue
 
@@ -69,29 +69,29 @@ def compute_metrics(detections, ground_truths, iou_threshold=0.5):
                     best_idx = i
 
             # Assign detections as TP or FP
-            if best_iou >= iou_threshold: #gt was not matched to any detection
+            if best_iou >= iou_threshold:
                 total_tp += 1 # detection is set as true positive
                 matched.add(best_idx)
             else:
                 total_fp += 1 # detection is set as false positive
 
         # Count ground-truth objects that were missed
-        total_fn += len(ground_truths) - len(matched)
+        total_fn += len(annotations) - len(matched)
 
     # Calculate metrics
     precision = total_tp / (total_tp + total_fp) if total_tp + total_fp else 0
     recall = total_tp / (total_tp + total_fn) if total_tp + total_fn else 0
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0
 
-    print(total_tp, total_fp, total_fn)
+    print(f"TP: {total_tp}, FP: {total_fp}, FN: {total_fn}")
+
     return {
         "precision": precision,
         "recall": recall,
         "f1": f1
     }
 
-# Rework this code, this is just GPT garbage rn, implement by yourself. Figure out if COCO vs Pascal VOC. AuC or interporalted percision metrics for the dataset. 
-#Read through the dataset
+
 def calculate_map50(predictions, ground_truths):
     """Calculate mAP@0.5 for bird detection using TorchMetrics."""
     metric = MeanAveragePrecision(
