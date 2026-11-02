@@ -3,7 +3,6 @@ import albumentations as A
 
 from .base import BaseTransform
 
-
 class Rotate(BaseTransform):
 
     ANGLE_RANGES = {
@@ -19,7 +18,11 @@ class Rotate(BaseTransform):
         self.pipelines = {
             severity: A.Compose(
                 [A.Rotate(limit=angle_range, p=1.0)],
-                bbox_params=A.BboxParams(format="pascal_voc"),
+                bbox_params=A.BboxParams(
+                    format="pascal_voc",
+                    clip=True,
+                    filter_invalid_bboxes=True
+                    ),
             )
             for severity, angle_range in self.ANGLE_RANGES.items()
         }
