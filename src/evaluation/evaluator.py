@@ -1,50 +1,25 @@
 
 import time
-import matplotlib.pyplot as plt
-from src.methods.base import BaseDetector
 from src.evaluation.metrics import calculate_map50, compute_metrics
 
 class Evaluator:
-    """Evaluate bird detection methods against ground-truth annotations.
+    """Evaluate one or more detectors against ground-truth annotations."""
 
-    Computes detection metrics, measures inference time, and displays
-    the evaluation results in a formatted table.
-    """
+    def __init__(self, detectors):
+        self.detectors = detectors
 
-    def __init__(self, detector: BaseDetector):
-        self.detector = detector
+    def evaluate(self, dataset):
+        """Evaluate all detectors on the same dataset."""
+        results = {}
 
-    def evaluate(self, dataset, title):
-        """Run the detector on every image in the dataset.
+        for name, detector in self.detectors.items():
+            results[name] = self._evaluate_detector(detector, dataset)
 
-        Runs inference on each image, compares predicted bounding boxes
-        against ground-truth annotations, and calculates detection metrics
-        including precision, recall, F1-score, and mAP@0.5.
+        return results
 
-        Measures the total inference time without including dataset loading.
-
-        Args:
-            dataset (list): List of (image, boxes) tuples, where:
-                - image: OpenCV BGR image as a NumPy array.
-                - boxes: Ground-truth bounding boxes of shape (N, 4)
-                  in XYXY pixel coordinates.
-            title (str): Title displayed above the evaluation results table.
-
-        Returns:
-            dict: Dictionary containing:
-                - predictions: List of prediction dictionaries, each
-                  containing "boxes" and "scores".
-                - ground_truths: List of ground-truth bounding box arrays.
-                - tp: Total true positives.
-                - fp: Total false positives.
-                - fn: Total false negatives.
-                - precision: Overall detection precision.
-                - recall: Overall detection recall.
-                - f1: F1-score.
-                - map50: Mean average precision at IoU threshold 0.5.
-                - inference_time: Total inference time in seconds.
-                - average_inference_time: Average seconds per image.
-        """
+    @staticmethod
+    def _evaluate_detector(detector, dataset):
+        """Run inference and calculate metrics for a single detector."""
         predictions = []
         ground_truths = []
         inference_time = 0.0
@@ -54,7 +29,7 @@ class Evaluator:
 
             # Measure prediction time
             start = time.perf_counter()
-            prediction = self.detector.predict(image)
+            prediction = detector.predict(image)
             inference_time += time.perf_counter() - start
 
             # Store predictions and corresponding ground truth
@@ -62,13 +37,16 @@ class Evaluator:
             ground_truths.append(boxes)
 
         # Calculate average inference time
-        average_time = inference_time / len(predictions) if len(predictions) else 0.0
-        
-        # Calculate evalulation metrics
+        average_time = (
+            inference_time / len(predictions)
+            if predictions else 0.0
+        )
+
+        # Calculate evaluation metrics
         metrics = compute_metrics(predictions, ground_truths)
         map50 = calculate_map50(predictions, ground_truths)
 
-        results = {
+        return {
             "predictions": predictions,
             "ground_truths": ground_truths,
             "inference_time": inference_time,
@@ -76,10 +54,6 @@ class Evaluator:
             "map50": map50,
             **metrics
         }
-
-        self.print_metrics(results, title)
-
-        return results
 
     
     def print_metrics(self, results, title):

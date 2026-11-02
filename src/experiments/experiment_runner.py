@@ -1,117 +1,126 @@
 """
-Purpose: Applies the requested transformation on given dataset, 
-    and run the performance evalution for given model.
+Purpose: Applies the requested transformation on a given dataset,
+    and runs performance evaluation for the given detectors.
 
-    Inputs: 
-    - Dataset — The images and ground-truth annotations to evaluate (val or test).
-    - Detector — The trained model implementing BaseDetector.predict().
-    - Transformation — The experiment to apply (blur, noise, rotation, composite etc.).
+Experiments:
+    - CleanExperiment: Evaluates the original dataset.
+    - RandomSeverityExperiment: Applies one corruption with a random
+      severity (1-5) per image.
+    - SeveritySweepExperiment: Applies one corruption at each
+      severity level (1-5).
+    - RandomCompositeExperiment: Applies a random combination
+      of corruptions to each image.
 
-Step 1: generate the corrupted dataset(s)
-    - no transform: the clean dataset
-    - sweep=False:  one dataset, random severity (1-5) per image
-    - sweep=True:   five datasets, one per severity 1-5
-Step 2: evaluate every detector on each of those datasets
+Each experiment generates its datasets once per call to run()
+and evaluates every detector against those same datasets.
+
+For repeated runs, call run() multiple times or create new
+experiment instances with different seeds.
 """
+
 import random
 from abc import ABC, abstractmethod
 
 from src.evaluation.evaluator import Evaluator
-from src.experiments.transforms.all_corruptions import all_corruptions
 from src.experiments.transforms.composite import CompositeTransform
 
 SEVERITIES = range(1, 6)
 
 
 class BaseExperiment(ABC):
-    """Owns the run loop: build ALL datasets for a run, then evaluate them."""
+    """Generates datasets and evaluates detectors."""
 
-    def __init__(self, runs=1):
-        self.runs = runs
+    def __init__(self, seed=None):
+        self.seed = seed if seed is not None else random.SystemRandom().randrange(2**32)
+        self.rng = random.Random(self.seed)
 
     def run(self, dataset, detectors):
-        """Returns one dict per run: {(corruption, severity): {detector: result}}"""
-        evaluators = {name: Evaluator(d) for name, d in detectors.items()}
+        """Returns {(corruption, severity): {detector_name: result}}."""
+        evaluator = Evaluator(detectors)
 
-        results = []
-        for _ in range(self.runs):
-            datasets = self._generate_datasets(dataset)             # Step 1: build all
-            results.append(self._evaluate(datasets, evaluators))    # Step 2: evaluate
+        # Step 1: Generate datasets
+        datasets = self._generate_datasets(dataset)
+
+        # Step 2: Evaluate detectors
+        results = {}
+
+        for key, data in datasets.items():
+            results[key] = evaluator.evaluate(data)
+
         return results
 
     @abstractmethod
     def _generate_datasets(self, dataset):
-        """Return {(corruption, severity): corrupted dataset}."""
-
-    @staticmethod
-    def _evaluate(datasets, evaluators):
-        results = {}
-
-        for key, data in datasets.items():
-            results[key] = {}
-
-            for name, ev in evaluators.items():
-                title = f"{name} - {key}"
-                results[key][name] = ev.evaluate(data, title)
-
-        return results
+        """Return {(corruption_name, severity): corrupted dataset}."""
+        pass
 
     @staticmethod
     def _corrupt(transform, dataset, severity):
-        return [transform.apply(image, boxes, severity) for image, boxes in dataset]
+        return [
+            transform.apply(image, boxes, severity)
+            for image, boxes in dataset
+        ]
 
 
 class RandomSeverityExperiment(BaseExperiment):
-    """1. Each corruption on its own, random severity per image."""
+    """Applies one corruption with random severity per image."""
 
-    def __init__(self, corruptions=None, runs=1):
-        super().__init__(runs)
-        self.corruptions = all_corruptions() if corruptions is None else corruptions
+    def __init__(self, transform, seed=None):
+        super().__init__(seed)
+        self.transform = transform
+        self.name = type(transform).__name__
+
+    def _corrupt(self, transform, dataset, severity=None):
+        return [
+            transform.apply(image, boxes, self.rng.choice(SEVERITIES))
+            for image, boxes in dataset
+        ]
 
     def _generate_datasets(self, dataset):
-        datasets = {}
-        for transform in self.corruptions:
-            corrupted = []
-            for image, boxes in dataset:
-                severity = random.choice(SEVERITIES)
-                corrupted.append(transform.apply(image, boxes, severity))
-            datasets[(type(transform), "random")] = corrupted
-        return datasets
+        corrupted = self._corrupt(self.transform, dataset)
+
+        return {
+            (self.name, "random"): corrupted
+        }
 
 
 class SeveritySweepExperiment(BaseExperiment):
-    """2. Severity 1-5 for all corruptions (default) or only the ones given."""
+    """Applies one corruption across severity levels 1-5."""
 
-    def __init__(self, corruptions=None):
-        super().__init__(runs=1)    # deterministic, one run is enough
-        self.corruptions = all_corruptions() if corruptions is None else corruptions
+    def __init__(self, transform, seed=None):
+        super().__init__(seed)
+        self.transform = transform
+        self.name = type(transform).__name__
 
     def _generate_datasets(self, dataset):
         datasets = {}
-        for transform in self.corruptions:
-            for severity in SEVERITIES:
-                datasets[(type(transform), severity)] = self._corrupt(transform, dataset, severity)
+
+        for severity in SEVERITIES:
+            datasets[(self.name, severity)] = self._corrupt(
+                self.transform, dataset, severity
+            )
+
         return datasets
-
-
 class RandomCompositeExperiment(BaseExperiment):
-    """3. Each image gets a random stack of corruptions."""
+    """Applies a random combination of corruptions to each image."""
 
-    def __init__(self, runs=1):
-        super().__init__(runs)
-        self.composite = CompositeTransform()
+    def __init__(self, seed=None):
+        super().__init__(seed)
+        self.composite = CompositeTransform(rng=self.rng)
 
     def _generate_datasets(self, dataset):
-        corrupted = self._corrupt(self.composite, dataset, severity=None) 
-        # composite draws its own levels
-        return {(CompositeTransform, "random"): corrupted}
+        corrupted = self._corrupt(
+            self.composite, dataset, severity=None
+        )
 
+        return {
+            ("composite", "random"): corrupted
+        }
 
 class CleanExperiment(BaseExperiment):
-    """Baseline: the untouched dataset."""
-
-    def __init__(self):
-        super().__init__(runs=1)
+    """Evaluates the original dataset without transformations."""
 
     def _generate_datasets(self, dataset):
-        return {("clean", None): dataset}
+        return {
+            ("clean", None): dataset
+        }
