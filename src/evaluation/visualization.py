@@ -1,101 +1,188 @@
+
 import matplotlib.pyplot as plt
+from pathlib import Path
+
+METRICS = [
+    ("tp", "TP"),
+    ("fp", "FP"),
+    ("fn", "FN"),
+    ("precision", "Precision"),
+    ("recall", "Recall"),
+    ("f1", "F1"),
+    ("map50", "mAP@0.5"),
+    ("inference_time", "Total (s)"),
+    ("average_inference_time", "Avg (s)")
+]
+
+BEST_METRICS = {"precision", "recall", "f1", "map50"}
+OUTPUT_DIR = Path("results/tables")
 
 
-def print_metrics(results, title):
-    """Display a comparison table of evaluation metrics.
+def format_metric(value, metric):
+    """Format metric values consistently."""
+    if metric in ("tp", "fp", "fn"):
+        return f"{value:,}"
+    return f"{value:.3f}"
 
-    Args:
-        results (dict): Maps column names to evaluation results.
-        title (str): Title displayed above the table.
-    """
 
-    metrics = [
-        ("tp", "True Positives"),
-        ("fp", "False Positives"),
-        ("fn", "False Negatives"),
-        ("precision", "Precision"),
-        ("recall", "Recall"),
-        ("f1", "F1-score"),
-        ("map50", "mAP@0.5"),
-        ("inference_time", "Total inference time (s)"),
-        ("average_inference_time", "Average inference time (s)")
+def render_table(data, headers, title, best_rows=None, seed=None):
+    """Render and export an IEEE-style table."""
+
+    with plt.rc_context({
+        "font.family": "serif",
+        "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+        "pdf.fonttype": 42
+    }):
+        fig, ax = plt.subplots(
+            figsize=(7.1, max(1.4, 0.6 + 0.35 * len(data)))
+        )
+        ax.axis("off")
+
+        table = ax.table(
+            cellText=data,
+            colLabels=headers,
+            colWidths=[0.16] + [0.093] * (len(headers) - 1),
+            cellLoc="center",
+            colLoc="center",
+            loc="center"
+        )
+
+        table.auto_set_font_size(False)
+        table.set_fontsize(8)
+        table.scale(1, 1.5)
+
+        # IEEE-style horizontal rules
+        for (row, col), cell in table.get_celld().items():
+            cell.set_facecolor("white")
+            cell.set_edgecolor("black")
+            cell.set_linewidth(0)
+            cell.visible_edges = ""
+            cell.PAD = 0.04
+
+            if row == 0:
+                cell.get_text().set_weight("bold")
+                cell.visible_edges = "TB"
+                cell.set_linewidth(0.8)
+
+            elif row == len(data):
+                cell.visible_edges = "B"
+                cell.set_linewidth(0.8)
+
+            if col == 0:
+                cell.get_text().set_ha("left")
+
+        # Highlight best-performing values
+        for row, col in best_rows or []:
+            cell = table[(row, col)]
+            cell.get_text().set_weight("bold")
+            cell.set_facecolor("#ECF4C9")
+
+        ax.set_title(title, fontsize=9, fontweight="bold", pad=10)
+
+        if seed is not None:
+            fig.text(
+                0.95, 0.02,
+                f"Seed: {seed}",
+                ha="right",
+                fontsize=7
+            )
+
+        plt.tight_layout(rect=[0, 0.08, 1, 1])
+
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+        filename = "".join(
+            c if c.isalnum() or c in "-_" else "_"
+            for c in title
+        )
+
+        fig.savefig(
+            OUTPUT_DIR / f"{filename}.pdf",
+            bbox_inches="tight",
+            pad_inches=0.05
+        )
+
+        plt.show()
+        plt.close(fig)
+
+
+def print_metrics(results, title, seed=None):
+    """Compare models in a single IEEE-style table."""
+
+    models = list(results)
+
+    data = [
+        [model] + [
+            format_metric(results[model][metric], metric)
+            for metric, _ in METRICS
+        ]
+        for model in models
     ]
 
-    # Column names (models or severity levels)
-    columns = list(results.keys())
+    best_rows = []
 
-    # Build table rows
-    data = []
+    for col, (metric, _) in enumerate(METRICS, start=1):
+        if metric in BEST_METRICS:
+            best = max(results[model][metric] for model in models)
 
-    for model in columns:
-        row = [model]
+            for row, model in enumerate(models, start=1):
+                if results[model][metric] == best:
+                    best_rows.append((row, col))
 
-        for metric, label in metrics:
-            value = results[model][metric]
+    headers = ["Model"] + [label for _, label in METRICS]
 
-            if metric in ("tp", "fp", "fn"):
-                row.append(f"{value:,}")
-            else:
-                row.append(f"{value:.4f}")
+    render_table(data, headers, title, best_rows, seed)
 
-        data.append(row)
 
-    # Create table
-    fig, ax = plt.subplots(
-        figsize=(max(8, 1.8 * (len(metrics) + 1)), 2 + 0.5 * len(columns))
-    )
-    ax.axis("off")
+def print_sweep_metrics(evaluations, title, seed=None):
+    """Compare severity levels in a separate table for each model."""
 
-    table = ax.table(
-        cellText=data,
-        colLabels=["Metric"] + [label for metric, label in metrics],
-        cellLoc="left",
-        colLoc="left",
-        loc="center"
-    )
+    models = list(evaluations[0])
 
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1, 1.4)
+    for model in models:
+        data = [
+            [severity] + [
+                format_metric(results[model][metric], metric)
+                for metric, _ in METRICS
+            ]
+            for severity, results in enumerate(evaluations, start=1)
+        ]
 
-    # Format table
-    for (row, col), cell in table.get_celld().items():
-        cell.set_facecolor("white")
-        cell.set_edgecolor("#333333")
-        cell.set_linewidth(0)
-        cell.PAD = 0.05
+        best_rows = []
 
-        if col > 0:
-            cell.get_text().set_ha("right")
+        for col, (metric, _) in enumerate(METRICS, start=1):
+            if metric in BEST_METRICS:
+                best = max(r[model][metric] for r in evaluations)
 
-        if row == 0:
-            cell.get_text().set_weight("bold")
-            cell.visible_edges = "TB"
-            cell.set_linewidth(0.8)
+                for row, results in enumerate(evaluations, start=1):
+                    if results[model][metric] == best:
+                        best_rows.append((row, col))
 
-        if row == len(data):
-            cell.visible_edges = "B"
-            cell.set_linewidth(0.8)
+        headers = ["Severity"] + [label for _, label in METRICS]
 
-    ax.set_title(title, fontsize=12, fontweight="bold", pad=15)
-
-    plt.tight_layout()
-    plt.show()
-
+        render_table(
+            data,
+            headers,
+            f"{title} - {model}",
+            best_rows,
+            seed
+        )
 
 
 def display_results(results, seed=None):
+    """Display normal evaluations and severity sweeps."""
+
     for name, evaluations in results.items():
-        for severity, detector_results in enumerate(evaluations, start=1):
 
-            if name == "CleanExperiment":
-                title = "Clean Evaluation"
-            elif len(evaluations) > 1:
-                title = f"{name} - Severity {severity}"
-            else:
-                title = f"{name} - Random Severity"
+        if name == "CleanExperiment":
+            print_metrics(evaluations[0], "Clean Evaluation", seed)
 
-            if seed is not None:
-                title += f" (Seed: {seed})"
+        elif len(evaluations) > 1:
+            print_sweep_metrics(evaluations, name, seed)
 
-            print_metrics(detector_results, title)
+        else:
+            print_metrics(
+                evaluations[0],
+                f"{name} - Random Severity",
+                seed
+            )
