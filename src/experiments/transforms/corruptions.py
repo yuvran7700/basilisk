@@ -12,15 +12,6 @@ class ImageCorruptionTransform(BaseTransform):
         super().__init__(name=corruption_name)
         self.corruption_name = corruption_name
 
-    def apply(self, image, boxes, severity):
-        corrupted = corrupt(
-            image,
-            corruption_name=self.corruption_name,
-            severity=severity,
-        )
-
-        return corrupted, boxes
-
 class GaussianNoise(ImageCorruptionTransform):
 
     def __init__(self):

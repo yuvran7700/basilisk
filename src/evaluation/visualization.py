@@ -27,11 +27,11 @@ def print_metrics(results, title):
     # Build table rows
     data = []
 
-    for metric, label in metrics:
-        row = [label]
+    for model in columns:
+        row = [model]
 
-        for column in columns:
-            value = results[column][metric]
+        for metric, label in metrics:
+            value = results[model][metric]
 
             if metric in ("tp", "fp", "fn"):
                 row.append(f"{value:,}")
@@ -42,13 +42,13 @@ def print_metrics(results, title):
 
     # Create table
     fig, ax = plt.subplots(
-        figsize=(max(6.5, 2 * (len(columns) + 1)), 3.5)
+        figsize=(max(8, 1.8 * (len(metrics) + 1)), 2 + 0.5 * len(columns))
     )
     ax.axis("off")
 
     table = ax.table(
         cellText=data,
-        colLabels=["Metric", *columns],
+        colLabels=["Metric"] + [label for metric, label in metrics],
         cellLoc="left",
         colLoc="left",
         loc="center"
@@ -81,6 +81,7 @@ def print_metrics(results, title):
 
     plt.tight_layout()
     plt.show()
+
 
 
 def display_results(results, seed=None):
