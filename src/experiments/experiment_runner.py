@@ -17,7 +17,7 @@ and evaluates every detector against those same datasets.
 For repeated runs, call run() multiple times or create new
 experiment instances with different seeds.
 """
-
+import itertools
 import random
 from abc import ABC, abstractmethod
 
@@ -25,7 +25,6 @@ from src.evaluation.evaluator import Evaluator
 from src.experiments.transforms.composite import CompositeTransform
 
 SEVERITIES = range(1, 6)
-
 
 class BaseExperiment(ABC):
     """Generates datasets and evaluates detectors."""
@@ -35,7 +34,7 @@ class BaseExperiment(ABC):
         self.rng = random.Random(self.seed)
 
     def run(self, dataset, detectors):
-        """Returns {(corruption, severity): {detector_name: result}}."""
+        """Returns {corruption_name: [evaluation_results]}."""
         evaluator = Evaluator(detectors)
 
         # Step 1: Generate datasets
@@ -44,44 +43,37 @@ class BaseExperiment(ABC):
         # Step 2: Evaluate detectors
         results = {}
 
-        for key, data in datasets.items():
-            results[key] = evaluator.evaluate(data)
+        for name, corrupted_datasets in datasets.items():
+            results[name] = []
+
+            for data in corrupted_datasets:
+                results[name].append(evaluator.evaluate(data))
 
         return results
 
     @abstractmethod
     def _generate_datasets(self, dataset):
-        """Return {(corruption_name, severity): corrupted dataset}."""
-        pass
+        """Return {corruption_name: [corrupted datasets]}."""
 
     @staticmethod
-    def _corrupt(transform, dataset, severity):
+    def _corrupt(transform, dataset, severities):
+        """Apply transform to each sample, using one severity per sample."""
         return [
             transform.apply(image, boxes, severity)
-            for image, boxes in dataset
+            for (image, boxes), severity in zip(dataset, severities)
         ]
 
 
 class RandomSeverityExperiment(BaseExperiment):
     """Applies one corruption with random severity per image."""
-
     def __init__(self, transform, seed=None):
         super().__init__(seed)
         self.transform = transform
-        self.name = type(transform).__name__
-
-    def _corrupt(self, transform, dataset, severity=None):
-        return [
-            transform.apply(image, boxes, self.rng.choice(SEVERITIES))
-            for image, boxes in dataset
-        ]
 
     def _generate_datasets(self, dataset):
-        corrupted = self._corrupt(self.transform, dataset)
-
-        return {
-            (self.name, "random"): corrupted
-        }
+        name = type(self.transform).__name__
+        severities = (self.rng.choice(SEVERITIES) for _ in dataset)
+        return {name: [self._corrupt(self.transform, dataset, severities)]}
 
 
 class SeveritySweepExperiment(BaseExperiment):
@@ -90,37 +82,29 @@ class SeveritySweepExperiment(BaseExperiment):
     def __init__(self, transform, seed=None):
         super().__init__(seed)
         self.transform = transform
-        self.name = type(transform).__name__
 
     def _generate_datasets(self, dataset):
-        datasets = {}
+        name = type(self.transform).__name__
+        return {
+            name: [
+                self._corrupt(self.transform, dataset, itertools.repeat(severity))
+                for severity in SEVERITIES
+            ]
+        }
 
-        for severity in SEVERITIES:
-            datasets[(self.name, severity)] = self._corrupt(
-                self.transform, dataset, severity
-            )
 
-        return datasets
 class RandomCompositeExperiment(BaseExperiment):
     """Applies a random combination of corruptions to each image."""
-
     def __init__(self, seed=None):
         super().__init__(seed)
-        self.composite = CompositeTransform(rng=self.rng)
+        self.transform = CompositeTransform(rng=self.rng)
 
     def _generate_datasets(self, dataset):
-        corrupted = self._corrupt(
-            self.composite, dataset, severity=None
-        )
-
-        return {
-            ("composite", "random"): corrupted
-        }
+        name = type(self.transform).__name__
+        severities = itertools.repeat(None)
+        return {name: [self._corrupt(self.transform, dataset, severities)]}
 
 class CleanExperiment(BaseExperiment):
     """Evaluates the original dataset without transformations."""
-
     def _generate_datasets(self, dataset):
-        return {
-            ("clean", None): dataset
-        }
+        return {type(self).__name__: [dataset]}

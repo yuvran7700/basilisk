@@ -3,7 +3,6 @@
 Implement image corruptions such as Gaussian Noise, Gaussian Blur, Motion Blur, 
 Brightness and Contrast
 """
-from imagecorruptions import corrupt
 import cv2
 from .base import BaseTransform
 import numpy as np
