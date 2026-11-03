@@ -1,6 +1,7 @@
-
+# src/evaluation/visualization.py
 import matplotlib.pyplot as plt
 from pathlib import Path
+from datetime import datetime
 
 METRICS = [
     ("tp", "TP"),
@@ -17,7 +18,6 @@ METRICS = [
 BEST_METRICS = {"precision", "recall", "f1", "map50"}
 OUTPUT_DIR = Path("results/tables")
 
-
 def format_metric(value, metric):
     """Format metric values consistently."""
     if metric in ("tp", "fp", "fn"):
@@ -27,6 +27,8 @@ def format_metric(value, metric):
 
 def render_table(data, headers, title, best_rows=None, seed=None):
     """Render and export an IEEE-style table."""
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
     with plt.rc_context({
         "font.family": "serif",
@@ -78,7 +80,7 @@ def render_table(data, headers, title, best_rows=None, seed=None):
             cell.set_facecolor("#ECF4C9")
 
         ax.set_title(title, fontsize=9, fontweight="bold", pad=10)
-
+        
         if seed is not None:
             fig.text(
                 0.95, 0.02,
@@ -91,10 +93,17 @@ def render_table(data, headers, title, best_rows=None, seed=None):
 
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+
         filename = "".join(
             c if c.isalnum() or c in "-_" else "_"
             for c in title
         )
+
+        if seed is not None:
+            filename += f"_seed{seed}"
+
+        filename += f"_{timestamp}"
 
         fig.savefig(
             OUTPUT_DIR / f"{filename}.pdf",

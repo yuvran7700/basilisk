@@ -1,8 +1,15 @@
 # src/experiments/transforms/corruption.py
 """
 Implement image corruptions such as Gaussian Noise, Gaussian Blur, Motion Blur, 
-Brightness and Contrast
+Brightness and Contrast.
+
+Based on the imagecorruptions package and research by:
+- Repository: https://github.com/bethgelab/imagecorruptions
+- Paper: Michaelis et al. (2019), "Benchmarking Robustness in Object Detection: 
+  Autonomous Driving when Winter is Coming" (arXiv:1907.07484)
+- Original concept by Dan Hendrycks and Thomas Dietterich.
 """
+
 import cv2
 from .base import BaseTransform
 import numpy as np

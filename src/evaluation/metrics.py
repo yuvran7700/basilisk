@@ -38,6 +38,7 @@ def get_iou(det, gt):
 # Padilla, R., Passos, W.L., Dias, T.L.B., Netto, S.L., & da Silva, E.A.B. (2021).
 # "A Comparative Analysis of Object Detection Metrics with a Companion Open-Source Toolkit."
 # Electronics, 10(3), 279. https://doi.org/10.3390/electronics10030279
+#
 # Repository: https://github.com/rafaelpadilla/review_object_detection_metrics
 def compute_metrics(detections, ground_truths, iou_threshold=0.5):
     """Calculate detection metrics using IoU-based matching.
