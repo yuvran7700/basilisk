@@ -2,6 +2,8 @@ kagglehub==1.0.3
 kagglesdk==0.1.38
 numpy==2.4.6
 opencv-python==5.0.0.93
-ipykernel==7.4.0ultralytics==8.4.198
+ipykernel==7.4.0
+ultralytics==8.4.198
 torchmetrics==1.9.0
-imagecorruptions==1.1.2
+albumentations==2.0.8
+pycocotools==2.0.11

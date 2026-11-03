@@ -3,7 +3,6 @@
 Implement image corruptions such as Gaussian Noise, Gaussian Blur, Motion Blur, 
 Brightness and Contrast
 """
-from imagecorruptions import corrupt
 import cv2
 from .base import BaseTransform
 import numpy as np
@@ -12,15 +11,6 @@ class ImageCorruptionTransform(BaseTransform):
     def __init__(self, corruption_name):
         super().__init__(name=corruption_name)
         self.corruption_name = corruption_name
-
-    def apply(self, image, boxes, severity):
-        corrupted = corrupt(
-            image,
-            corruption_name=self.corruption_name,
-            severity=severity,
-        )
-
-        return corrupted, boxes
 
 class GaussianNoise(ImageCorruptionTransform):
 
